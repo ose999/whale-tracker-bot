@@ -5,7 +5,7 @@ const Monitor = require('./monitor');
 const RealTime = require('./realtime');
 
 // REPLACE WITH YOUR ACTUAL BOT TOKEN
-const bot = new Telegraf('8648837042:AAF9a7oVPohc1NUz3LmV9Q4XIEeS_ZcOV_Q');
+const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // Setup Solana connection
 const connection = new Connection('https://api.mainnet-beta.solana.com');
