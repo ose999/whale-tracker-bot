@@ -1,0 +1,4 @@
+node_modules/
+tracked_wallets.json
+.env
+.DS_Store
