@@ -20,11 +20,8 @@ function loadWallets() {
         console.error('Error loading wallets:', error.message);
     }
     
-    // Default wallets if file doesn't exist
-    const defaults = [
-        '7RYJ6L67UZx4HZvNvpK4gUvL4VpBqkZxmXJkXbY7nLqA',
-        '8x2w3Z9uPqRvWmY4nQkLpJgHtVcXfD5sN8bA6cF3eR7y'
-    ];
+    // Default wallets if file doesn't exist - START WITH EMPTY LIST
+    const defaults = [];
     saveWallets(defaults);
     return defaults;
 }
