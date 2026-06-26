@@ -4,6 +4,21 @@ const Tracker = require('./tracker');
 const Monitor = require('./monitor');
 const RealTime = require('./realtime');
 
+// ============ KEEP-ALIVE SERVER FOR RENDER ============
+// This is REQUIRED for Render Web Services
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 10000;
+
+app.get('/', (req, res) => {
+    res.send('🐋 Whale Tracker Bot is running!');
+});
+
+app.listen(port, '0.0.0.0', () => {
+    console.log(`✅ Keep-alive server listening on port ${port}`);
+});
+// =====================================================
+
 // REPLACE WITH YOUR ACTUAL BOT TOKEN
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
