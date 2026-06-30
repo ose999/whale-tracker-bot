@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const Tracker = require('./tracker');
