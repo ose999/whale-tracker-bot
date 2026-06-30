@@ -1,8 +1,13 @@
 const { Connection, PublicKey } = require('@solana/web3.js');
 const Tracker = require('./tracker');
 
-// Setup Solana connection
-const connection = new Connection('https://api.mainnet-beta.solana.com');
+// ============ CONFIGURATION ============
+const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
+const POLLING_INTERVAL = 30000; // 30 seconds
+const ALERT_WINDOW_MINUTES = 5; // Only alert for transactions within last 5 minutes
+
+// ============ SETUP ============
+const connection = new Connection(SOLANA_RPC);
 
 // Store bot instance for sending alerts
 let botInstance = null;
@@ -11,6 +16,8 @@ let botInstance = null;
 function setBot(bot) {
     botInstance = bot;
 }
+
+// ============ TRANSACTION CHECKING ============
 
 // Monitor tracked wallets for transactions
 async function checkWalletActivity(walletAddress) {
@@ -32,8 +39,8 @@ async function checkWalletActivity(walletAddress) {
         const currentTime = Math.floor(Date.now() / 1000);
         const timeDiff = currentTime - txTime;
         
-        // Only alert if it's recent (within 5 minutes)
-        if (timeDiff < 300 && latestTx.confirmationStatus === 'confirmed') {
+        // Only alert if it's recent and confirmed
+        if (timeDiff < (ALERT_WINDOW_MINUTES * 60) && latestTx.confirmationStatus === 'confirmed') {
             return {
                 signature: latestTx.signature,
                 time: txTime,
@@ -48,35 +55,48 @@ async function checkWalletActivity(walletAddress) {
     }
 }
 
-// Start monitoring all tracked wallets
+// ============ MONITORING LOOP ============
+
+// Start monitoring all tracked wallets (fallback polling)
 async function startMonitoring() {
-    console.log('🔍 Starting wallet monitoring...');
+    console.log('🔍 Starting fallback monitoring (polling)...');
+    console.log(`⏱️ Checking every ${POLLING_INTERVAL / 1000} seconds`);
+    console.log(`⏰ Alert window: ${ALERT_WINDOW_MINUTES} minutes`);
     
-    // Check every 30 seconds
+    // Check every X seconds
     setInterval(async () => {
-        const wallets = Tracker.getTrackedWallets(); // <-- THIS WAS MISSING
+        const wallets = Tracker.getTrackedWallets();
+        
+        if (wallets.length === 0) {
+            // No wallets to monitor
+            return;
+        }
         
         for (const wallet of wallets) {
             try {
                 const activity = await checkWalletActivity(wallet);
                 if (activity && botInstance) {
                     // Send alert to Telegram
-                    botInstance.telegram.sendMessage(
+                    await botInstance.telegram.sendMessage(
                         process.env.CHAT_ID || 'YOUR_CHAT_ID_HERE',
-                        `🐋 WHALE ALERT!\n\nWallet: ${wallet.slice(0, 8)}...${wallet.slice(-6)}\nTransaction: https://solscan.io/tx/${activity.signature}\nTime: ${new Date(activity.time * 1000).toLocaleTimeString()}`
+                        `🐋 **WHALE ALERT!** (Fallback)\n\nWallet: ${wallet.slice(0, 8)}...${wallet.slice(-6)}\nTransaction: [View on Solscan](https://solscan.io/tx/${activity.signature})\nTime: ${new Date(activity.time * 1000).toLocaleTimeString()}`,
+                        { parse_mode: 'Markdown' }
                     );
+                    console.log(`📤 Fallback alert sent for ${wallet.slice(0, 8)}...`);
                 }
             } catch (error) {
                 console.error('Monitoring error:', error.message);
             }
         }
-    }, 30000); // Check every 30 seconds
+    }, POLLING_INTERVAL);
     
     // Get wallets for the console log
     const trackedWallets = Tracker.getTrackedWallets();
-    console.log(`✅ Monitoring ${trackedWallets.length} wallets`);
+    console.log(`✅ Fallback monitoring: ${trackedWallets.length} wallets`);
+    console.log(`⚠️ Note: Real-time WebSocket monitoring is the primary method`);
 }
 
+// ============ EXPORTS ============
 module.exports = {
     startMonitoring,
     setBot

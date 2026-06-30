@@ -29,16 +29,6 @@ const connection = new Connection('https://api.mainnet-beta.solana.com');
 Monitor.setBot(bot);
 RealTime.setBot(bot);
 
-// ============ PREMIUM USERS ============
-const PREMIUM_USERS = [
-    // '123456789', // Add premium user IDs here
-];
-
-function isPremium(ctx) {
-    const userId = ctx.from.id.toString();
-    return PREMIUM_USERS.includes(userId);
-}
-
 // ============ COMMANDS ============
 
 // START
@@ -61,6 +51,10 @@ bot.start((ctx) => {
                 [
                     { text: '🔁 Copy Trade', callback_data: 'menu_copy' },
                     { text: '🔌 Realtime', callback_data: 'menu_realtime' }
+                ],
+                [
+                    { text: '👑 My Tier', callback_data: 'menu_mytier' },
+                    { text: '💎 Pricing', callback_data: 'menu_pricing' }
                 ],
                 [
                     { text: '💎 Premium', callback_data: 'menu_premium' },
@@ -92,6 +86,10 @@ bot.action('menu', (ctx) => {
                 [
                     { text: '🔁 Copy Trade', callback_data: 'menu_copy' },
                     { text: '🔌 Realtime', callback_data: 'menu_realtime' }
+                ],
+                [
+                    { text: '👑 My Tier', callback_data: 'menu_mytier' },
+                    { text: '💎 Pricing', callback_data: 'menu_pricing' }
                 ],
                 [
                     { text: '🆔 My ID', callback_data: 'menu_id' },
@@ -159,10 +157,56 @@ bot.action('menu_realtime', (ctx) => {
     ctx.reply(`🔌 **REAL-TIME WebSocket Monitoring**\n\nTracking ${count} wallets\n⚡ Instant alerts via WebSocket\n📡 No delay - real-time notifications!\n\nWhen whales trade, you'll know instantly!`);
 });
 
+bot.action('menu_mytier', (ctx) => {
+    ctx.answerCbQuery();
+    const userId = ctx.from.id.toString();
+    const tierInfo = Tracker.getUserTier(userId);
+    
+    let message = `👑 **Your Tier: ${tierInfo.name}**\n\n`;
+    message += `📊 **Features:**\n`;
+    tierInfo.features.forEach(f => {
+        message += `✅ ${f}\n`;
+    });
+    message += `\n📈 **Max Wallets:** ${tierInfo.maxWallets}`;
+    
+    if (tierInfo.expires) {
+        const daysLeft = Math.ceil((tierInfo.expires - Date.now()) / (1000 * 60 * 60 * 24));
+        message += `\n⏳ **Days Left:** ${daysLeft}`;
+    } else {
+        message += `\n📅 **Status:** Active (No expiration)`;
+    }
+    
+    ctx.reply(message, { parse_mode: 'Markdown' });
+});
+
+bot.action('menu_pricing', (ctx) => {
+    ctx.answerCbQuery();
+    ctx.reply(
+        `💎 **PREMIUM TIERS**\n\n` +
+        `🔹 **FREE**\n` +
+        `- Basic alerts\n` +
+        `- 3 tracked wallets\n` +
+        `- Price: $0\n\n` +
+        `🔹 **PREMIUM**\n` +
+        `- Instant alerts\n` +
+        `- Unlimited wallets\n` +
+        `- Early signals\n` +
+        `- Price: $20/month\n\n` +
+        `🔹 **PRO**\n` +
+        `- Copy trading signals\n` +
+        `- Advanced analytics\n` +
+        `- Priority support\n` +
+        `- Multi-chain support\n` +
+        `- Price: $100/month\n\n` +
+        `To upgrade, contact @krooksos`,
+        { parse_mode: 'Markdown' }
+    );
+});
+
 bot.action('menu_id', (ctx) => {
     ctx.answerCbQuery();
     const userId = ctx.from.id;
-    ctx.reply(`🆔 Your Telegram ID: ${userId}\n\nGive this to the bot owner for premium access!`);
+    ctx.reply(`🆔 Your Telegram ID: ${userId}\n\nGive this to @krooksos for premium access!`);
 });
 
 bot.action('menu_ping', (ctx) => {
@@ -172,11 +216,13 @@ bot.action('menu_ping', (ctx) => {
 
 bot.action('menu_premium', (ctx) => {
     ctx.answerCbQuery();
-    if (isPremium(ctx)) {
-        ctx.reply('💎 **PREMIUM ACCESS GRANTED!**\n\nYou have access to all premium features! 🚀');
+    const userId = ctx.from.id.toString();
+    const tierInfo = Tracker.getUserTier(userId);
+    
+    if (tierInfo.tier !== 'FREE') {
+        ctx.reply(`💎 **${tierInfo.name} ACCESS GRANTED!**\n\nYou have access to all ${tierInfo.name} features! 🚀`);
     } else {
-        const userId = ctx.from.id;
-        ctx.reply(`💎 **PREMIUM FEATURES**\n\nUpgrade to Premium for:\n✅ Instant whale alerts (no delay)\n✅ Copy trading signals\n✅ Early token detection\n✅ Advanced analytics\n\n💳 Subscribe: $20/month\n\nYour ID: ${userId}\nContact @YOUR_USERNAME to subscribe.`);
+        ctx.reply(`💎 **PREMIUM FEATURES**\n\nUpgrade to Premium or Pro:\n✅ Instant whale alerts (no delay)\n✅ Unlimited tracked wallets\n✅ Copy trading signals\n✅ Advanced analytics\n\n💳 Subscribe: $20/month (Premium) or $100/month (Pro)\n\nYour ID: ${userId}\nContact @krooksos to subscribe.`);
     }
 });
 
@@ -198,6 +244,8 @@ bot.action('menu_help', (ctx) => {
               '/realtime - Show real-time status\n' +
               '/testalert - Test alert notification\n' +
               '/premium - Premium features\n' +
+              '/mytier - Check your tier\n' +
+              '/pricing - Show pricing\n' +
               '/id - Get your user ID\n' +
               '/buy - Buy crypto\n' +
               '/ping - Test if bot is working\n\n' +
@@ -221,7 +269,7 @@ bot.command('help', (ctx) => {
 // ID - Get user ID
 bot.command('id', (ctx) => {
     const userId = ctx.from.id;
-    ctx.reply(`🆔 Your Telegram ID: ${userId}`);
+    ctx.reply(`🆔 Your Telegram ID: ${userId}\n\nGive this to @krooksos for premium access!`);
 });
 
 // PING
@@ -249,10 +297,12 @@ bot.command('balance', async (ctx) => {
     }
 });
 
-// TRACK
+// TRACK - With tier limits
 bot.command('track', async (ctx) => {
     try {
+        const userId = ctx.from.id.toString();
         const parts = ctx.message.text.split(' ');
+        
         if (parts.length < 2) {
             ctx.reply('❌ Please provide a wallet address.\n\nExample: /track 7RYJ6L67UZx4HZvNvpK4gUvL4VpBqkZxmXJkXbY7nLqA');
             return;
@@ -261,15 +311,33 @@ bot.command('track', async (ctx) => {
         const walletAddress = parts[1];
         try { new PublicKey(walletAddress); } catch { ctx.reply('❌ Invalid wallet address.'); return; }
         
+        // Check user tier
+        const tierInfo = Tracker.getUserTier(userId);
+        const currentCount = Tracker.getTrackedCount();
+        
+        if (currentCount >= tierInfo.maxWallets) {
+            ctx.reply(
+                `❌ You've reached your tier limit.\n\n` +
+                `Your tier: ${tierInfo.name}\n` +
+                `Max wallets: ${tierInfo.maxWallets}\n` +
+                `Currently tracking: ${currentCount}\n\n` +
+                `Use /mytier to check your tier.\n` +
+                `Use /pricing to see upgrade options.\n` +
+                `Contact @krooksos to upgrade.`
+            );
+            return;
+        }
+        
         const added = Tracker.addTrackedWallet(walletAddress);
         if (added) {
             const count = Tracker.getTrackedCount();
-            ctx.reply(`✅ Wallet added!\n\nNow tracking ${count} wallets.`);
+            ctx.reply(`✅ Wallet added!\n\nNow tracking ${count} wallets.\nYour tier: ${tierInfo.name} (${tierInfo.maxWallets} max)`);
         } else {
             ctx.reply(`ℹ️ Wallet already tracked.`);
         }
     } catch (error) {
         ctx.reply('❌ Something went wrong.');
+        console.error(error);
     }
 });
 
@@ -344,11 +412,69 @@ bot.command('testalert', (ctx) => {
 
 // PREMIUM
 bot.command('premium', (ctx) => {
-    if (isPremium(ctx)) {
-        ctx.reply('💎 Premium access granted! 🚀');
+    const userId = ctx.from.id.toString();
+    const tierInfo = Tracker.getUserTier(userId);
+    
+    if (tierInfo.tier !== 'FREE') {
+        ctx.reply(`💎 ${tierInfo.name} access granted! 🚀\n\nYou have access to all ${tierInfo.name} features.`);
     } else {
-        ctx.reply(`💎 PREMIUM: $20/month\n\nContact @YOUR_USERNAME to subscribe.\n\nYour ID: ${ctx.from.id}`);
+        ctx.reply(`💎 **PREMIUM SUBSCRIPTION**\n\n` +
+                  `💰 Premium: $20/month\n` +
+                  `👑 Pro: $100/month\n\n` +
+                  `**Features:**\n` +
+                  `✅ Instant whale alerts\n` +
+                  `✅ Unlimited tracked wallets\n` +
+                  `✅ Copy trading signals\n` +
+                  `✅ Advanced analytics\n\n` +
+                  `Contact @krooksos to subscribe.\n\n` +
+                  `Your ID: ${ctx.from.id}`, { parse_mode: 'Markdown' });
     }
+});
+
+// MYTIER - Check current tier
+bot.command('mytier', (ctx) => {
+    const userId = ctx.from.id.toString();
+    const tierInfo = Tracker.getUserTier(userId);
+    
+    let message = `👑 **Your Tier: ${tierInfo.name}**\n\n`;
+    message += `📊 **Features:**\n`;
+    tierInfo.features.forEach(f => {
+        message += `✅ ${f}\n`;
+    });
+    message += `\n📈 **Max Wallets:** ${tierInfo.maxWallets}`;
+    
+    if (tierInfo.expires) {
+        const daysLeft = Math.ceil((tierInfo.expires - Date.now()) / (1000 * 60 * 60 * 24));
+        message += `\n⏳ **Days Left:** ${daysLeft}`;
+    } else {
+        message += `\n📅 **Status:** Active (No expiration)`;
+    }
+    
+    ctx.reply(message, { parse_mode: 'Markdown' });
+});
+
+// PRICING - Show all tiers
+bot.command('pricing', (ctx) => {
+    ctx.reply(
+        `💎 **PREMIUM TIERS**\n\n` +
+        `🔹 **FREE**\n` +
+        `- Basic alerts\n` +
+        `- 3 tracked wallets\n` +
+        `- Price: $0\n\n` +
+        `🔹 **PREMIUM**\n` +
+        `- Instant alerts\n` +
+        `- Unlimited wallets\n` +
+        `- Early signals\n` +
+        `- Price: $20/month\n\n` +
+        `🔹 **PRO**\n` +
+        `- Copy trading signals\n` +
+        `- Advanced analytics\n` +
+        `- Priority support\n` +
+        `- Multi-chain support\n` +
+        `- Price: $100/month\n\n` +
+        `To upgrade, contact @krooksos`,
+        { parse_mode: 'Markdown' }
+    );
 });
 
 // BUY
@@ -373,10 +499,59 @@ bot.telegram.setMyCommands([
     { command: 'realtime', description: 'Show real-time status' },
     { command: 'testalert', description: 'Test alert notification' },
     { command: 'premium', description: 'Premium features' },
+    { command: 'mytier', description: 'Check your tier' },
+    { command: 'pricing', description: 'Show pricing' },
     { command: 'id', description: 'Get your user ID' },
     { command: 'buy', description: 'Buy crypto' },
     { command: 'ping', description: 'Test if bot is working' },
 ]);
+
+// ============ ADMIN COMMANDS ============
+// Your Telegram ID for admin access
+const BOT_OWNER_ID = '8477891454';
+
+// Admin: Upgrade a user
+bot.command('upgrade', (ctx) => {
+    if (ctx.from.id.toString() !== BOT_OWNER_ID) {
+        ctx.reply('❌ You are not authorized to use this command.');
+        return;
+    }
+    
+    const parts = ctx.message.text.split(' ');
+    if (parts.length < 3) {
+        ctx.reply('❌ Usage: /upgrade USER_ID TIER (FREE, PREMIUM, or PRO)\n\nExample: /upgrade 123456789 PREMIUM');
+        return;
+    }
+    
+    const userId = parts[1];
+    const tier = parts[2].toUpperCase();
+    
+    if (!['FREE', 'PREMIUM', 'PRO'].includes(tier)) {
+        ctx.reply('❌ Invalid tier. Use FREE, PREMIUM, or PRO.');
+        return;
+    }
+    
+    Tracker.setUserTier(userId, tier, 30);
+    ctx.reply(`✅ User ${userId} upgraded to ${tier} for 30 days!`);
+});
+
+// Admin: Check user tier
+bot.command('checkuser', (ctx) => {
+    if (ctx.from.id.toString() !== BOT_OWNER_ID) {
+        ctx.reply('❌ You are not authorized to use this command.');
+        return;
+    }
+    
+    const parts = ctx.message.text.split(' ');
+    if (parts.length < 2) {
+        ctx.reply('❌ Usage: /checkuser USER_ID');
+        return;
+    }
+    
+    const userId = parts[1];
+    const tierInfo = Tracker.getUserTier(userId);
+    ctx.reply(`User ${userId} is on tier: ${tierInfo.name}\nMax wallets: ${tierInfo.maxWallets}`);
+});
 
 // ============ START BOT ============
 console.log('✅ Meme Coin Whale Tracker is running!');

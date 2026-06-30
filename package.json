@@ -1,28 +1,42 @@
 {
-  "name": "my-telegram-bot",
+  "name": "whale-tracker-bot",
   "version": "1.0.0",
-  "description": "Telegram Bot Boilerplate\r Overview\r This project provides a boilerplate for building a Telegram bot integrated with Solana blockchain functionalities. The bot supports various features such as checking wallet balance, swapping tokens, and provides a framework for adding additional functionalities like borrowing and lending.\r Features\r •\tBalance: Check the balance of a Solana wallet.\r •\tBorrow: Placeholder for borrowing functionality (coming soon).\r •\tLend: Placeholder for lending functionality (coming soon).\r •\tSwap: Placeholder for token swapping functionality.\r •\tExit: End the interaction.\r Requirements\r •\tNode.js\r •\tTelegram Bot Token\r •\tSolana Wallet Integration\r Setup\r 1. Clone the Repository\r Clone this repository to your local machine:\r bash\r Copy code\r git clone <REPOSITORY_URL>\r cd telegram-bot-boilerplate\r 2. Install Dependencies\r Install the necessary npm packages:\r bash\r Copy code\r npm install telegraf @solana/web3.js\r 3. Configure the Bot Token\r Open index.js and replace 'YOUR_TELEGRAM_BOT_TOKEN' with your actual Telegram bot token.\r javascript\r Copy code\r const bot = new Telegraf('YOUR_TELEGRAM_BOT_TOKEN');\r 4. Create Project Files\r Make sure you have the following files in your project directory:\r index.js\r javascript\r Copy code\r const { Telegraf } = require('telegraf');\r const { Connection, PublicKey, clusterApiUrl } = require('@solana/web3.js');\r const TradingBot = require('./tradingBot');",
+  "description": "Real-time Solana whale tracking Telegram bot with premium tier system",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [
+    "telegram-bot",
+    "solana",
+    "crypto",
+    "whale-tracker",
+    "blockchain",
+    "trading",
+    "meme-coins"
+  ],
+  "author": "@krooksos",
+  "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tushar-tomar11/telegram-bot-in-Javascript.git"
+    "url": "git+https://github.com/ose999/whale-tracker-bot.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "bugs": {
-    "url": "https://github.com/tushar-tomar11/telegram-bot-in-Javascript/issues"
+    "url": "https://github.com/ose999/whale-tracker-bot/issues"
   },
-  "homepage": "https://github.com/tushar-tomar11/telegram-bot-in-Javascript#readme",
+  "homepage": "https://github.com/ose999/whale-tracker-bot#readme",
   "dependencies": {
-    "@solana/web3.js": "^1.98.4",
-    "axios": "^1.18.1",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
+    "@solana/spl-token": "^0.4.0",
+    "@solana/web3.js": "^1.95.0",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
     "telegraf": "^4.16.3",
-    "ws": "^8.21.0"
+    "ws": "^8.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   }
 }

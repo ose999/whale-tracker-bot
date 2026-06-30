@@ -2,8 +2,14 @@ const WebSocket = require('ws');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const Tracker = require('./tracker');
 
-// Setup Solana connection
-const connection = new Connection('https://api.mainnet-beta.solana.com');
+// ============ CONFIGURATION ============
+const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY_BASE = 5000; // 5 seconds
+const CONNECTION_DELAY = 1000; // 1 second between wallet connections
+
+// ============ SETUP ============
+const connection = new Connection(SOLANA_RPC);
 
 // Store bot instance
 let botInstance = null;
@@ -15,8 +21,10 @@ function setBot(bot) {
     botInstance = bot;
 }
 
+// ============ ALERT SYSTEM ============
+
 // Send alert to Telegram
-async function sendAlert(wallet, signature) {
+async function sendAlert(wallet, signature, tokenInfo = '') {
     if (!botInstance || isShuttingDown) return;
     
     const walletShort = `${wallet.slice(0, 8)}...${wallet.slice(-6)}`;
@@ -24,6 +32,7 @@ async function sendAlert(wallet, signature) {
     
 Wallet: ${walletShort}
 Transaction: [View on Solscan](https://solscan.io/tx/${signature})
+${tokenInfo}
 Time: ${new Date().toLocaleTimeString()}`;
 
     try {
@@ -38,6 +47,8 @@ Time: ${new Date().toLocaleTimeString()}`;
     }
 }
 
+// ============ WALLET MONITORING ============
+
 // Monitor a single wallet
 async function monitorWallet(wallet, index, total) {
     if (isShuttingDown) return;
@@ -48,20 +59,18 @@ async function monitorWallet(wallet, index, total) {
         
         console.log(`🔗 [${index + 1}/${total}] Connecting to ${shortWallet}...`);
         
-        const ws = new WebSocket('wss://api.mainnet-beta.solana.com', {
-            // Add these options to prevent aggressive reconnection
+        const ws = new WebSocket(SOLANA_RPC.replace('https://', 'wss://'), {
             handshakeTimeout: 10000,
             timeout: 30000
         });
         
         let reconnectAttempts = 0;
-        const MAX_RECONNECT_ATTEMPTS = 5;
         
         ws.on('open', function open() {
             console.log(`✅ [${shortWallet}] Connected!`);
             reconnectAttempts = 0;
             
-            // Subscribe to transactions
+            // Subscribe to transactions for this wallet
             const subscribeMessage = {
                 jsonrpc: '2.0',
                 id: 1,
@@ -97,7 +106,7 @@ async function monitorWallet(wallet, index, total) {
                     }
                 }
             } catch (error) {
-                // Ignore parse errors
+                // Ignore parse errors for non-notification messages
             }
         });
         
@@ -108,12 +117,13 @@ async function monitorWallet(wallet, index, total) {
         ws.on('close', function close() {
             if (!isShuttingDown && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                 reconnectAttempts++;
-                console.log(`🔄 [${shortWallet}] Reconnecting (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+                const delay = RECONNECT_DELAY_BASE * reconnectAttempts;
+                console.log(`🔄 [${shortWallet}] Reconnecting (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}) in ${delay/1000}s...`);
                 setTimeout(() => {
                     if (!isShuttingDown) {
                         monitorWallet(wallet, index, total);
                     }
-                }, 5000 * reconnectAttempts); // Exponential backoff
+                }, delay);
             } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
                 console.log(`❌ [${shortWallet}] Max reconnection attempts reached. Stopping.`);
             }
@@ -125,6 +135,8 @@ async function monitorWallet(wallet, index, total) {
         console.error(`❌ Error setting up ${wallet.slice(0, 8)}:`, error.message);
     }
 }
+
+// ============ START/STOP ============
 
 // Start monitoring all tracked wallets
 async function startRealTimeMonitoring() {
@@ -138,10 +150,11 @@ async function startRealTimeMonitoring() {
     }
     
     console.log(`📊 Monitoring ${wallets.length} wallets`);
+    console.log(`🔗 Using RPC: ${SOLANA_RPC}`);
     
     // Monitor each wallet with a small delay to avoid rate limits
     for (let i = 0; i < wallets.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay between connections
+        await new Promise(resolve => setTimeout(resolve, CONNECTION_DELAY));
         monitorWallet(wallets[i], i, wallets.length);
     }
 }
@@ -153,9 +166,12 @@ function stopMonitoring() {
     wsConnections.forEach(ws => {
         try {
             ws.close();
-        } catch (e) {}
+        } catch (e) {
+            // Ignore close errors
+        }
     });
     wsConnections = [];
+    console.log('✅ All WebSocket connections closed');
 }
 
 module.exports = {
